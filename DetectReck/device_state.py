@@ -9,7 +9,6 @@ from .utg import UTG
 from .utils import md5
 from .input_event import TouchEvent, LongTouchEvent, ScrollEvent, SetTextEvent, KeyEvent
 # Baidu OCR
-from .utils import get_client
 from .new_input_policy import MIN_NUM_EXPLORE_EVENTS
 from .text_similarity import get_sim_score
 from sentence_transformers import SentenceTransformer

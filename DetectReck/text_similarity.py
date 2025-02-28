@@ -33,22 +33,3 @@ def get_sim_score(pre_model, text):
     sim_text = samples[index[0][0]]
     # print('The most similar red packet text：', sim_text)
     return max_score, sim_text
-
-
-# if __name__ == '__main__':
-#     start_time0 = datetime.datetime.now()
-#     model = SentenceTransformer('resources/paraphrase-multilingual-MiniLM-L12-v2')
-#     end_time0 = datetime.datetime.now()
-#     time0 = (end_time0 - start_time0).seconds + (end_time0 - start_time0).microseconds / 1000000
-#     print('加载模型的时间：', time0)
-#
-#     start_time = datetime.datetime.now()
-#     origin_text = '邀请新用户领取！！！'
-#     score, match_text = get_sim_score(model, origin_text)
-#
-#     if round(score, 2) >= numpy.float32(0.6):
-#         print("匹配成功！")
-#
-#     end_time = datetime.datetime.now()
-#     time2 = (end_time - start_time).seconds + (end_time - start_time).microseconds / 1000000
-#     print("时间消费：", time2, "s")

@@ -12,7 +12,6 @@ from abc import abstractmethod
 
 from .input_event import InputEvent, KeyEvent, IntentEvent, TouchEvent, ManualEvent, SetTextEvent, KillAppEvent
 from .utg import UTG
-from DetectReck.utils import get_client
 
 # Max number of restarts
 MAX_NUM_RESTARTS = 3

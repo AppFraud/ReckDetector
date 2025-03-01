@@ -33,5 +33,5 @@ Through keyword filtering, a total of 14,875 user reviews related to red packets
 
 ## Acknowledgement
 
-1. [ReckDetector](https://github.com/AppFraud/ReckDetector)
+1. [ReckDroid](https://github.com/FraudDetector/ReckDroid)
 2. [Droidbot](https://github.com/honeynet/droidbot)

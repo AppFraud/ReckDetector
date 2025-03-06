@@ -13,7 +13,7 @@ Through keyword filtering, a total of 14,875 user reviews related to red packets
 
 1. `Python 3` 
 2. `Android SDK`
-3. `Android device` equipped with `Magisk` and `LSPosed` frameworks
+3. `Android device` equipped with `Magisk` and `LSPosed/EdXposed` frameworks
 
 
 ## How to use
@@ -28,8 +28,9 @@ Through keyword filtering, a total of 14,875 user reviews related to red packets
 
 
 **Notice**
-1. The `DetectReck/input` directory stores `.apk` files of the apps you want to detect.
-2. The `DetectReck/output` directory outputs the UTGs of all apps and the list of apps containing red packet.
+1. If the apps to be detected are manually installed on the device, it is necessary to manually grant `read/write permissions` to those apps before running ReckDetector.
+2. The `DetectReck/input` directory stores `.apk` files of the apps you want to detect.
+3. The `DetectReck/output` directory outputs the UTGs of all apps and the list of apps containing red packet.
 
 ## Acknowledgement
 

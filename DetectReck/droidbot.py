@@ -245,6 +245,12 @@ class DroidBot(object):
                 elif '#custom popup#' in message:
                     with open('DetectReck/output/utgs/custom_popup.txt', "w+", encoding="UTF-8") as f:
                         f.write(message)
+                elif '#third-party popup#' in message:
+                    with open('DetectReck/output/utgs/third-party_popup.txt', "w+", encoding="UTF-8") as f:
+                        f.write(message)
+                elif '#pop-up image#' in message:
+                    with open('DetectReck/output/utgs/popup_image_position.txt', "a+", encoding="UTF-8") as f:
+                        f.write(message + '\n')
         except socket.error:
             if self.enabled:
                 traceback.print_exc()

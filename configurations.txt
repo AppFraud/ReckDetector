@@ -1,0 +1,1 @@
+1. Download the pre-trained Sentence-BERT model "paraphrase-multilingual-MiniLM-L12-v2" to the "DetectReck/resources" directory.

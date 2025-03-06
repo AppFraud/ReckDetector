@@ -9,6 +9,7 @@ from .utg import UTG
 from .utils import md5
 from .input_event import TouchEvent, LongTouchEvent, ScrollEvent, SetTextEvent, KeyEvent
 # Baidu OCR
+from .utils import get_client
 from .new_input_policy import MIN_NUM_EXPLORE_EVENTS
 from .text_similarity import get_sim_score
 from sentence_transformers import SentenceTransformer
@@ -581,6 +582,10 @@ class DeviceState(object):
             f.write('')
         with open('DetectReck/output/utgs/popup_window.txt', "w+") as f:
             f.write('')
+        with open('DetectReck/output/utgs/third-party_popup.txt', "w+") as f:
+            f.write('')
+        with open('DetectReck/output/utgs/popup_image_position.txt', "w+") as f:
+            f.write('')
 
         # 2 Check the confirmation page
         with open('DetectReck/resources/keywords/confirm.txt', "r+", encoding='UTF-8') as f:
@@ -686,13 +691,17 @@ class DeviceState(object):
         return all_possible_events
 
     def identify_red_packet(self):
-        # 通过Android端的Xposed模块识别弹窗（dialog、popup window、custom popup）
+        # Identify pop-up windows (dialog, popup window, custom popup, third-party popup) through an Android Xposed module.
         with open('DetectReck/output/utgs/dialog.txt', 'r', encoding='UTF-8') as f:
             dialog_text = f.read()
         with open('DetectReck/output/utgs/custom_popup.txt', 'r', encoding='UTF-8') as f:
             custom_popup_text = f.read()
         with open('DetectReck/output/utgs/popup_window.txt', 'r', encoding='UTF-8') as f:
             popup_window_text = f.read()
+        with open('DetectReck/output/utgs/third-party_popup.txt', 'r', encoding='UTF-8') as f:
+            third_popup_text = f.read()
+        with open('DetectReck/output/utgs/popup_image_position.txt', 'r', encoding='UTF-8') as f:
+            popup_image_positions = f.read()
 
         # Restore to default
         if dialog_text != '':
@@ -703,6 +712,12 @@ class DeviceState(object):
                 f.write('')
         if popup_window_text != '':
             with open('DetectReck/output/utgs/popup_window.txt', "w+") as f:
+                f.write('')
+        if third_popup_text != '':
+            with open('DetectReck/output/utgs/third-party_popup.txt', "w+") as f:
+                f.write('')
+        if popup_image_positions != '':
+            with open('DetectReck/output/utgs/popup_image_position.txt', "w+") as f:
                 f.write('')
 
         # Identify whether a pop-up view exist in the current state
@@ -721,8 +736,19 @@ class DeviceState(object):
             if self.check_popup_view('popup window', text):
                 return True
 
+        if third_popup_text != '' and '#third-party popup#' in third_popup_text:
+            text = third_popup_text.replace('#third-party popup#\n', '')
+            if self.check_popup_view('third-party popup', text):
+                return True
+
+        if popup_image_positions != '' and '#pop-up image#' in popup_image_positions:
+            pos_info = popup_image_positions.replace('#pop-up image#:', '').strip()
+            if self.check_popup_image('pop-up image', pos_info):
+                return True
+
         return False
 
+    # Analyze the text in the pop-up view.
     def check_popup_view(self, tag, text):
         is_red_packet = False
 
@@ -746,6 +772,10 @@ class DeviceState(object):
             self.logger.info(f'The {tag} is not a red packet.')
 
         return is_red_packet
+
+    # Extract and analyze the text in the pop-up image.
+    def check_popup_image(self, tag, pos_info):
+        pass
 
     def check_reck_text(self, text):
         token = text.replace('\n', '').replace(' ', '')

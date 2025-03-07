@@ -1,1 +1,3 @@
-1. Download the pre-trained Sentence-BERT model "paraphrase-multilingual-MiniLM-L12-v2" to the "DetectReck/resources" directory.
+1. DetectReck/utils.py/get_client(): Set your app ID, API Key and secret key (need to sign up for Baidu OCR).
+2. DetectReck/resources/aip-python-sdk-4.15.12.zip: Add baidu-aip-sdk to python environment.
+3. Download the pre-trained Sentence-BERT model "paraphrase-multilingual-MiniLM-L12-v2" to the "DetectReck/resources" directory.

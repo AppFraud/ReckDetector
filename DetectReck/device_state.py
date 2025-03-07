@@ -1,9 +1,13 @@
 import copy
 import math
-import os, shutil
+import os
+import shutil
 import logging
 import re
 import numpy
+import time
+from PIL import Image
+from datetime import datetime
 
 from .utg import UTG
 from .utils import md5
@@ -28,7 +32,6 @@ class DeviceState(object):
         self.activity_stack = activity_stack if isinstance(activity_stack, list) else []
         self.background_services = background_services
         if tag is None:
-            from datetime import datetime
             tag = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         self.tag = tag
         self.screenshot_path = screenshot_path
@@ -179,7 +182,6 @@ class DeviceState(object):
             state_json_file.close()
             shutil.copyfile(self.screenshot_path, dest_screenshot_path)
             self.screenshot_path = dest_screenshot_path
-            # from PIL.Image import Image
             # if isinstance(self.screenshot_path, Image):
             #     self.screenshot_path.save(dest_screenshot_path)
         except Exception as e:
@@ -203,7 +205,6 @@ class DeviceState(object):
             self.view_file_path = view_file_path
             if os.path.exists(view_file_path):
                 return -1
-            from PIL import Image
             # Load the original image:
             view_bound = view_dict['bounds']
             original_img = Image.open(self.screenshot_path)
@@ -691,7 +692,7 @@ class DeviceState(object):
         return all_possible_events
 
     def identify_red_packet(self):
-        # Identify pop-up windows (dialog, popup window, custom popup, third-party popup) through an Android Xposed module.
+        # Identify pop-up windows (dialog, popup window, custom popup, third-party popup) via an Android Xposed module.
         with open('DetectReck/output/utgs/dialog.txt', 'r', encoding='UTF-8') as f:
             dialog_text = f.read()
         with open('DetectReck/output/utgs/custom_popup.txt', 'r', encoding='UTF-8') as f:
@@ -756,18 +757,18 @@ class DeviceState(object):
         # Save the pop-up view locally
         dst_popup_path = os.path.join(self.device.output_dir, "candidates\\popup\\")
         print("########## screenshot_path: ", self.screenshot_path)
-        self.copy_file(self.screenshot_path, dst_popup_path)
+        copy_file(self.screenshot_path, dst_popup_path)
 
         self.logger.info(f'Checking whether the {tag} is a red packet...')
         print(f'#Text in the {tag}: {text}')
 
-        if self.check_reck_text(text):
+        if check_reck_text(text):
             is_red_packet = True
             self.logger.info("Red packet is found.")
 
             # Save the red packet view locally
             dst_reck_path = os.path.join(self.device.output_dir, "candidates\\red_packet\\")
-            self.copy_file(self.screenshot_path, dst_reck_path)
+            copy_file(self.screenshot_path, dst_reck_path)
         else:
             self.logger.info(f'The {tag} is not a red packet.')
 
@@ -775,40 +776,105 @@ class DeviceState(object):
 
     # Extract and analyze the text in the pop-up image.
     def check_popup_image(self, tag, pos_info):
-        pass
+        is_red_packet = False
 
-    def check_reck_text(self, text):
-        token = text.replace('\n', '').replace(' ', '')
+        self.logger.info(f'Find a {tag}!')
+        positions = pos_info.split('\n')
+        # print(positions)
+        for pos in positions:
+            elems = [int(x) for x in pos.split(',')]
+            if elems[2] > 1 and elems[3] > 1:    # width > 1 and height > 1
+                print("Coordinates and Size: ", elems)
+                # Save the pop-up image locally
+                dst_popup_path = os.path.join(self.device.output_dir, "candidates\\popup\\images\\")
+                original_image_path = self.screenshot_path
+                print("########## screenshot_path: ", original_image_path)
+                copy_file(original_image_path, dst_popup_path)
+                # Crop a sub-image
+                cropped_image_path = crop_sub_image(elems, original_image_path, dst_popup_path)
+                print(cropped_image_path)
+                # Extract text content in the image by OCR
+                words = extract_image_text(cropped_image_path)
+                if words is not None:
+                    print('OCR results：', words)
+                    text = ''
+                    for word in words:
+                        text += word['words'] + '\n'
+                    # print(text)
+                    if check_reck_text(text):
+                        is_red_packet = True
+                        # Save the red packet image locally
+                        dst_reck_path = os.path.join(self.device.output_dir, "candidates\\red_packet\\")
+                        copy_file(cropped_image_path, dst_reck_path)
+                        return is_red_packet
+                    else:
+                        print(f'The {tag} is not a red packet.')
+            # time.sleep(1)
+        return is_red_packet
 
-        if token != '':
-            # Match the most similar red packet text and get the corresponding score
-            model = SentenceTransformer('DetectReck/resources/paraphrase-multilingual-MiniLM-L12-v2')
-            max_score, sim_text = get_sim_score(model, token)
-            print("Maximum similarity score and most similar red packet text: (%.2f, %s)." % (max_score, sim_text))
 
-            if round(max_score, 2) >= numpy.float32(0.6):
-                print("Text matching successful!")
-                return True
-            else:
-                # Match the open button of the red packet if no red packet text exists
-                words = text.replace(' ', '').split('\n')
-                with open('DetectReck/resources/keywords/red_packet_btn.txt', "r", encoding='UTF-8') as f:
-                    btn_keywords = f.read().split('\n')
-                for word in words:
-                    if word in btn_keywords:
-                        print("The open button matching successful!")
-                        return True
-        return False
+# Check whether the text is related to a red packet.
+def check_reck_text(text):
+    token = text.replace('\n', '').replace(' ', '')
+    if token != '':
+        # Match the most similar red packet text and get the corresponding score
+        model = SentenceTransformer('DetectReck/resources/paraphrase-multilingual-MiniLM-L12-v2')
+        max_score, sim_text = get_sim_score(model, token)
+        print("Maximum similarity score and most similar red packet text: (%.2f, %s)." % (max_score, sim_text))
 
-    # Copy the file to the specified folder
-    def copy_file(self, srcfile, dstpath):
-        if not os.path.isfile(srcfile):
-            self.logger.warning("%s not exist!" % srcfile)
+        if round(max_score, 2) >= numpy.float32(0.6):
+            print("Text matching successful!")
+            return True
         else:
-            fpath, fname = os.path.split(srcfile)
-            if not os.path.exists(dstpath):
-                os.makedirs(dstpath)
-            from datetime import datetime
-            # tag = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-            # new_name = 'red-packet-' + tag + '.' + fname.split(".")[-1]
-            shutil.copyfile(srcfile, dstpath + fname)
+            # Match the open button of the red packet if no red packet text exists
+            words = text.replace(' ', '').split('\n')
+            with open('DetectReck/resources/keywords/red_packet_btn.txt', "r", encoding='UTF-8') as f:
+                btn_keywords = f.read().split('\n')
+            for word in words:
+                if word in btn_keywords:
+                    print("The open button matching successful!")
+                    return True
+    return False
+
+
+# Copy the file to the specified folder
+def copy_file(srcfile, dstpath):
+    if not os.path.isfile(srcfile):
+        print("Warning: %s not exist!" % srcfile)
+    else:
+        fpath, fname = os.path.split(srcfile)
+        if not os.path.exists(dstpath):
+            os.makedirs(dstpath)
+        # tag = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        # new_name = 'red-packet-' + tag + '.' + fname.split(".")[-1]
+        shutil.copyfile(srcfile, dstpath + fname)
+
+
+# Crop a sub-image according to coordinate positions.
+def crop_sub_image(elems, original_image_path, output_dir):
+    original_img = Image.open(original_image_path)
+    tag = datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    cropped_image_path = "%s/image_%s.jpg" % (output_dir, tag)
+    x, y = elems[0], elems[1]
+    width, height = elems[2], elems[3]
+    box = (x, y, x + width, y + height)
+    cropped_image = original_img.crop(box)
+    cropped_image.convert("RGB").save(cropped_image_path)
+    return cropped_image_path
+
+
+# Extract all text embedded in the image by OCR.
+def extract_image_text(image_path):
+    with open(image_path, 'rb') as fp:
+        image = fp.read()
+    words = None
+    # OCR API
+    result = get_client().basicGeneral(image)
+    print(result)
+    if 'words_result' in result:
+        words_num = result['words_result_num']
+        if words_num > 0:
+            words = result['words_result']
+    return words

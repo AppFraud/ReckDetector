@@ -577,15 +577,15 @@ class DeviceState(object):
                 return specific_events
 
         # Restore to default
-        with open('DetectReck/output/utgs/dialog.txt', "w+") as f:
+        with open('DetectReck/output/dialog.txt', "w+") as f:
             f.write('')
-        with open('DetectReck/output/utgs/custom_popup.txt', "w+") as f:
+        with open('DetectReck/output/custom_popup.txt', "w+") as f:
             f.write('')
-        with open('DetectReck/output/utgs/popup_window.txt', "w+") as f:
+        with open('DetectReck/output/popup_window.txt', "w+") as f:
             f.write('')
-        with open('DetectReck/output/utgs/third-party_popup.txt', "w+") as f:
+        with open('DetectReck/output/third-party_popup.txt', "w+") as f:
             f.write('')
-        with open('DetectReck/output/utgs/popup_image_position.txt', "w+") as f:
+        with open('DetectReck/output/popup_image_position.txt', "w+") as f:
             f.write('')
 
         # 2 Check the confirmation page
@@ -691,34 +691,35 @@ class DeviceState(object):
 
         return all_possible_events
 
+    # Identify red packet from all pop-ups
     def identify_red_packet(self):
         # Identify pop-up windows (dialog, popup window, custom popup, third-party popup) via an Android Xposed module.
-        with open('DetectReck/output/utgs/dialog.txt', 'r', encoding='UTF-8') as f:
+        with open('DetectReck/output/dialog.txt', 'r', encoding='UTF-8') as f:
             dialog_text = f.read()
-        with open('DetectReck/output/utgs/custom_popup.txt', 'r', encoding='UTF-8') as f:
+        with open('DetectReck/output/custom_popup.txt', 'r', encoding='UTF-8') as f:
             custom_popup_text = f.read()
-        with open('DetectReck/output/utgs/popup_window.txt', 'r', encoding='UTF-8') as f:
+        with open('DetectReck/output/popup_window.txt', 'r', encoding='UTF-8') as f:
             popup_window_text = f.read()
-        with open('DetectReck/output/utgs/third-party_popup.txt', 'r', encoding='UTF-8') as f:
+        with open('DetectReck/output/third-party_popup.txt', 'r', encoding='UTF-8') as f:
             third_popup_text = f.read()
-        with open('DetectReck/output/utgs/popup_image_position.txt', 'r', encoding='UTF-8') as f:
+        with open('DetectReck/output/popup_image_position.txt', 'r', encoding='UTF-8') as f:
             popup_image_positions = f.read()
 
         # Restore to default
         if dialog_text != '':
-            with open('DetectReck/output/utgs/dialog.txt', "w+") as f:
+            with open('DetectReck/output/dialog.txt', "w+") as f:
                 f.write('')
         if custom_popup_text != '':
-            with open('DetectReck/output/utgs/custom_popup.txt', "w+") as f:
+            with open('DetectReck/output/custom_popup.txt', "w+") as f:
                 f.write('')
         if popup_window_text != '':
-            with open('DetectReck/output/utgs/popup_window.txt', "w+") as f:
+            with open('DetectReck/output/popup_window.txt', "w+") as f:
                 f.write('')
         if third_popup_text != '':
-            with open('DetectReck/output/utgs/third-party_popup.txt', "w+") as f:
+            with open('DetectReck/output/third-party_popup.txt', "w+") as f:
                 f.write('')
         if popup_image_positions != '':
-            with open('DetectReck/output/utgs/popup_image_position.txt', "w+") as f:
+            with open('DetectReck/output/popup_image_position.txt', "w+") as f:
                 f.write('')
 
         # Identify whether a pop-up view exist in the current state
@@ -742,12 +743,60 @@ class DeviceState(object):
             if self.check_popup_view('third-party popup', text):
                 return True
 
+        # If the pop-up is an image
         if popup_image_positions != '' and '#pop-up image#' in popup_image_positions:
             pos_info = popup_image_positions.replace('#pop-up image#:', '').strip()
             if self.check_popup_image('pop-up image', pos_info):
                 return True
 
+        # If the current UI is embedded in the WebView
+        if self.check_web_view():
+            return True
+
         return False
+
+    # Analyze the text in the WebView ().
+    def check_web_view(self):
+        enabled_view_ids = self.enabled_view_ids
+        for view_id in enabled_view_ids:
+            view = self.views[view_id]
+            if view['class'] == "android.webkit.WebView" and view['scrollable']:
+                # Save the web view locally
+                dst_web_path = os.path.join(self.device.output_dir, "candidates/pop-ups/webview-embedded/")
+                original_image_path = self.screenshot_path
+                # print("########## Screenshot path: ", original_image_path)
+                copy_file(original_image_path, dst_web_path)
+                # Crop a sub-image from the screenshot
+                bounds = view['bounds']
+                elems = [bounds[0][0], bounds[0][1], bounds[1][0], bounds[1][1]]
+                cropped_image_path = crop_sub_image(elems, original_image_path, dst_web_path)
+                # print("########## Cropped image path: ", cropped_image_path)
+
+                # embedded_text = self.extract_webview_text(view)  # Extract text from the UI components
+                # print("#All text in the WebView:\n", embedded_text)
+                # if check_reck_text(embedded_text):
+                #     self.logger.info("Red packet is found.")
+                #     # Save the red packet image locally
+                #     dst_reck_path = os.path.join(self.device.output_dir, "candidates/red_packets/")
+                #     copy_file(cropped_image_path, dst_reck_path)
+                #     return True
+
+                words = extract_image_text(cropped_image_path)  # OCR
+                if words is not None:
+                    # print('Word Results：', words)
+                    embedded_text = ''
+                    for word in words:
+                        embedded_text += word['words'] + '\n'
+                    print("#All text in the WebView:\n", embedded_text)
+
+                    if check_reck_text(embedded_text):
+                        self.logger.info("Red packet is found.")
+                        # Save the red packet locally
+                        dst_reck_path = os.path.join(self.device.output_dir, "candidates/red_packets/")
+                        copy_file(cropped_image_path, dst_reck_path)
+                        return True
+
+                return False
 
     # Analyze the text in the pop-up view.
     def check_popup_view(self, tag, text):
@@ -755,8 +804,8 @@ class DeviceState(object):
 
         self.logger.info(f'Find a {tag}!')
         # Save the pop-up view locally
-        dst_popup_path = os.path.join(self.device.output_dir, "candidates\\popup\\")
-        print("########## screenshot_path: ", self.screenshot_path)
+        dst_popup_path = os.path.join(self.device.output_dir, "candidates/pop-ups/text-embedded/")
+        # print("########## screenshot_path: ", self.screenshot_path)
         copy_file(self.screenshot_path, dst_popup_path)
 
         self.logger.info(f'Checking whether the {tag} is a red packet...')
@@ -767,7 +816,7 @@ class DeviceState(object):
             self.logger.info("Red packet is found.")
 
             # Save the red packet view locally
-            dst_reck_path = os.path.join(self.device.output_dir, "candidates\\red_packet\\")
+            dst_reck_path = os.path.join(self.device.output_dir, "candidates/red_packets/")
             copy_file(self.screenshot_path, dst_reck_path)
         else:
             self.logger.info(f'The {tag} is not a red packet.')
@@ -783,34 +832,48 @@ class DeviceState(object):
         # print(positions)
         for pos in positions:
             elems = [int(x) for x in pos.split(',')]
-            if elems[2] > 1 and elems[3] > 1:    # width > 1 and height > 1
-                print("Coordinates and Size: ", elems)
-                # Save the pop-up image locally
-                dst_popup_path = os.path.join(self.device.output_dir, "candidates\\popup\\images\\")
-                original_image_path = self.screenshot_path
-                print("########## screenshot_path: ", original_image_path)
-                copy_file(original_image_path, dst_popup_path)
-                # Crop a sub-image
-                cropped_image_path = crop_sub_image(elems, original_image_path, dst_popup_path)
-                print(cropped_image_path)
-                # Extract text content in the image by OCR
-                words = extract_image_text(cropped_image_path)
-                if words is not None:
-                    print('OCR results：', words)
-                    text = ''
-                    for word in words:
-                        text += word['words'] + '\n'
-                    # print(text)
-                    if check_reck_text(text):
-                        is_red_packet = True
-                        # Save the red packet image locally
-                        dst_reck_path = os.path.join(self.device.output_dir, "candidates\\red_packet\\")
-                        copy_file(cropped_image_path, dst_reck_path)
-                        return is_red_packet
-                    else:
-                        print(f'The {tag} is not a red packet.')
+            print("Image Coordinates: ", elems)
+            # Save the pop-up image locally
+            dst_popup_path = os.path.join(self.device.output_dir, "candidates/pop-ups/image-embedded/")
+            original_image_path = self.screenshot_path
+            # print("########## screenshot_path: ", original_image_path)
+            copy_file(original_image_path, dst_popup_path)
+            # Crop a sub-image from the screenshot
+            cropped_image_path = crop_sub_image(elems, original_image_path, dst_popup_path)
+            # print("########## Cropped image path: ", cropped_image_path)
+            # Extract text content in the image by OCR
+            words = extract_image_text(cropped_image_path)
+            if words is not None:
+                # print('Word Results：', words)
+                image_text = ''
+                for word in words:
+                    image_text += word['words'] + '\n'
+                # print("#All text in the pop-up image:\n", image_text)
+
+                if check_reck_text(image_text):
+                    is_red_packet = True
+                    self.logger.info("Red packet is found.")
+
+                    # Save the red packet image locally
+                    dst_reck_path = os.path.join(self.device.output_dir, "candidates/red_packets/")
+                    copy_file(cropped_image_path, dst_reck_path)
+
+                    return is_red_packet
+                else:
+                    print(f'The {tag} is not a red packet.')
             # time.sleep(1)
         return is_red_packet
+
+    # Extract all text embedded in the WebView.
+    def extract_webview_text(self, view):
+        children_ids = self.get_all_children(view)
+        all_text = ''
+        for child_id in children_ids:
+            child_view = self.views[child_id]
+            if child_view['class'] in ['android.view.View', 'android.widget.TextView'] and child_view['text']:
+                text = child_view['text'].strip()
+                all_text += (text + '\n')
+        return all_text.strip()
 
 
 # Check whether the text is related to a red packet.
@@ -853,13 +916,16 @@ def copy_file(srcfile, dstpath):
 # Crop a sub-image according to coordinate positions.
 def crop_sub_image(elems, original_image_path, output_dir):
     original_img = Image.open(original_image_path)
-    tag = datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    cropped_image_path = "%s/image_%s.jpg" % (output_dir, tag)
-    x, y = elems[0], elems[1]
-    width, height = elems[2], elems[3]
-    box = (x, y, x + width, y + height)
+    # tag = datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
+    # cropped_image_path = "%simage_%s.jpg" % (output_dir, tag)
+    fpath, fname = os.path.split(original_image_path)
+    image_name = fname.replace('screen', 'image')
+    cropped_image_path = "%s%s" % (output_dir, image_name)
+    x1, y1, x2, y2 = elems[0], elems[1], elems[2], elems[3]
+    box = (x1, y1, x2, y2)
     cropped_image = original_img.crop(box)
     cropped_image.convert("RGB").save(cropped_image_path)
     return cropped_image_path
@@ -872,7 +938,7 @@ def extract_image_text(image_path):
     words = None
     # OCR API
     result = get_client().basicGeneral(image)
-    print(result)
+    print("OCR Result: ", result)
     if 'words_result' in result:
         words_num = result['words_result_num']
         if words_num > 0:

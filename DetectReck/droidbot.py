@@ -237,19 +237,19 @@ class DroidBot(object):
 
                 # Save message to files
                 if '#dialog#' in message:
-                    with open('DetectReck/output/utgs/dialog.txt', "w+", encoding="UTF-8") as f:
+                    with open('DetectReck/output/dialog.txt', "w+", encoding="UTF-8") as f:
                         f.write(message)
                 elif '#popup window#' in message:
-                    with open('DetectReck/output/utgs/popup_window.txt', "w+", encoding="UTF-8") as f:
+                    with open('DetectReck/output/popup_window.txt', "w+", encoding="UTF-8") as f:
                         f.write(message)
                 elif '#custom popup#' in message:
-                    with open('DetectReck/output/utgs/custom_popup.txt', "w+", encoding="UTF-8") as f:
+                    with open('DetectReck/output/custom_popup.txt', "w+", encoding="UTF-8") as f:
                         f.write(message)
                 elif '#third-party popup#' in message:
-                    with open('DetectReck/output/utgs/third-party_popup.txt', "w+", encoding="UTF-8") as f:
+                    with open('DetectReck/output/third-party_popup.txt', "w+", encoding="UTF-8") as f:
                         f.write(message)
                 elif '#pop-up image#' in message:
-                    with open('DetectReck/output/utgs/popup_image_position.txt', "a+", encoding="UTF-8") as f:
+                    with open('DetectReck/output/popup_image_position.txt', "a+", encoding="UTF-8") as f:
                         f.write(message + '\n')
         except socket.error:
             if self.enabled:
